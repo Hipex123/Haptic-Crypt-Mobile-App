@@ -3,42 +3,12 @@
 import "package:flutter/material.dart";
 import "dart:io";
 
-String serverData = "";
 bool isConnected = true;
+final GlobalKey<AppState> appStateKey = GlobalKey<AppState>();
 
 void main() => runApp(MaterialApp(
       home: App(),
     ));
-
-connect(String ip, int port) async {
-  try {
-    print("Connecting to server...");
-    final socket = await Socket.connect(ip, port);
-    print("Connected to server!");
-
-    socket.write("CONNECTED|PH0NE");
-
-    socket.listen(
-      (data) {
-        //print("Server response: ${String.fromCharCodes(data)}");
-        serverData += "\n" + String.fromCharCodes(data);
-        if (!isConnected) {
-          print("Closing connection...");
-          socket.close();
-        }
-      },
-      onDone: () {
-        print("Server closed the connection.");
-      },
-      onError: (error) {
-        print("Error: $error");
-        socket.close();
-      },
-    );
-  } catch (e) {
-    print("Connection failed: $e");
-  }
-}
 
 class App extends StatefulWidget {
   @override
@@ -47,8 +17,44 @@ class App extends StatefulWidget {
 
 class AppState extends State<App> {
   List<DynamicButton> dynamicButtons = [];
-
   List<String> data = [];
+  String serverData = "";
+
+  void updateServerData(String newData) {
+    setState(() {
+      serverData = newData;
+    });
+  }
+
+  connect(String ip, int port) async {
+    try {
+      print("Connecting to server...");
+      final socket = await Socket.connect(ip, port);
+      print("Connected to server!");
+
+      socket.write("CONNECTED|PH0NE");
+
+      socket.listen(
+        (data) {
+          updateServerData("\n" + String.fromCharCodes(data));
+
+          if (!isConnected) {
+            socket.write("CL0SE|CONNECTION|PHONE");
+            socket.close();
+          }
+        },
+        onDone: () {
+          print("Server closed the connection.");
+        },
+        onError: (error) {
+          print("Error: $error");
+          socket.close();
+        },
+      );
+    } catch (e) {
+      print("Connection failed: $e");
+    }
+  }
 
   void addButton(String serverName, String ip, int port) {
     setState(() {
