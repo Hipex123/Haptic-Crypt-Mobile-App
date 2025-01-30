@@ -2,8 +2,8 @@
 
 import "package:flutter/material.dart";
 import "dart:io";
+import "package:flutter_speed_dial/flutter_speed_dial.dart";
 
-bool isConnected = true;
 final GlobalKey<AppState> appStateKey = GlobalKey<AppState>();
 
 void main() => runApp(MaterialApp(
@@ -19,6 +19,8 @@ class AppState extends State<App> {
   List<DynamicButton> dynamicButtons = [];
   List<String> data = [];
   String serverData = "";
+  bool isConnected = false;
+  Socket? m_socket;
 
   void updateServerData(String newData) {
     setState(() {
@@ -26,29 +28,34 @@ class AppState extends State<App> {
     });
   }
 
-  connect(String ip, int port) async {
+  void switchConnectionStatus() {
+    setState(() {
+      isConnected = !isConnected;
+    });
+  }
+
+  connect(String ip, String username, int port) async {
     try {
       print("Connecting to server...");
-      final socket = await Socket.connect(ip, port);
+      m_socket = await Socket.connect(ip, port);
       print("Connected to server!");
 
-      socket.write("CONNECTED|PH0NE");
+      m_socket!.write("CONNECTED|PH0NE|" + username);
 
-      socket.listen(
+      m_socket!.listen(
         (data) {
-          updateServerData("\n" + String.fromCharCodes(data));
-
-          if (!isConnected) {
-            socket.write("CL0SE|CONNECTION|PHONE");
-            socket.close();
+          if (String.fromCharCodes(data) == "Username taken") {
+            m_socket!.close();
           }
+          updateServerData("\n" + String.fromCharCodes(data));
+          print(isConnected);
         },
         onDone: () {
           print("Server closed the connection.");
         },
         onError: (error) {
           print("Error: $error");
-          socket.close();
+          m_socket!.close();
         },
       );
     } catch (e) {
@@ -56,22 +63,76 @@ class AppState extends State<App> {
     }
   }
 
-  void addButton(String serverName, String ip, int port) {
+  void addButton(String serverName, String ip, String username, int port) {
     setState(() {
       dynamicButtons.add(
         DynamicButton(
           label: serverName,
           onPressed: () {
-            connect(ip, port);
+            showInputDialogServerOptions(
+                context, serverName, ip, username, port);
           },
         ),
       );
     });
   }
 
-  void showInputDialog(BuildContext context) {
+  void removeButton(String serverName) {
+    setState(() {
+      dynamicButtons.removeWhere((button) => button.label == serverName);
+    });
+  }
+
+  void showInputDialogServerOptions(BuildContext context, String serverName,
+      String ip, String username, int port) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Text("Server Options"),
+              actions: <Widget>[
+                TextButton(
+                  child: Text("Cancel"),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: Text(isConnected ? "Disconnect" : "Connect"),
+                  onPressed: () {
+                    setStateDialog(() {
+                      switchConnectionStatus();
+                    });
+
+                    if (isConnected) {
+                      connect(ip, username, port);
+                    } else if (!isConnected) {
+                      m_socket!.write("CL0SE|CONNECTION|PHONE");
+                      m_socket!.close();
+                    }
+                  },
+                ),
+                TextButton(
+                  child: Text("Remove"),
+                  onPressed: () {
+                    removeButton(serverName);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void showInputDialogAddServer(BuildContext context) {
     String serverName = "";
     String ip = "";
+    String username = "";
     int port = 0;
 
     showDialog(
@@ -101,6 +162,12 @@ class AppState extends State<App> {
                   },
                   decoration: InputDecoration(hintText: "Server Port"),
                 ),
+                TextField(
+                  onChanged: (value) {
+                    username = value;
+                  },
+                  decoration: InputDecoration(hintText: "Server Username"),
+                ),
               ],
             ),
           ),
@@ -115,7 +182,7 @@ class AppState extends State<App> {
               child: Text("Add"),
               onPressed: () {
                 if (serverName.isNotEmpty && ip.isNotEmpty && port != 0) {
-                  addButton(serverName, ip, port);
+                  addButton(serverName, ip, username, port);
                   Navigator.of(context).pop();
                 }
               },
@@ -169,9 +236,19 @@ class AppState extends State<App> {
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => showInputDialog(context),
-          child: Icon(Icons.add),
+        floatingActionButton: SpeedDial(
+          animatedIcon: AnimatedIcons.menu_close,
+          backgroundColor: Colors.grey[100],
+          children: [
+            SpeedDialChild(
+              onTap: () => showInputDialogAddServer(context),
+              child: Icon(Icons.add),
+            ),
+            SpeedDialChild(
+              onTap: () => updateServerData(""),
+              child: Icon(Icons.clear_all),
+            ),
+          ],
         ),
       ),
     );
