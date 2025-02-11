@@ -3,6 +3,13 @@
 import "package:flutter/material.dart";
 import "dart:io";
 import "package:flutter_speed_dial/flutter_speed_dial.dart";
+import "dart:ffi";
+import "package:ffi/ffi.dart";
+
+typedef DecodeWrapperC = Pointer<Utf8> Function(
+    Pointer<Pointer<Utf8>> input, int length);
+typedef DecodeWrapperDart = Pointer<Utf8> Function(
+    Pointer<Pointer<Utf8>> input, int length);
 
 final GlobalKey<AppState> appStateKey = GlobalKey<AppState>();
 
