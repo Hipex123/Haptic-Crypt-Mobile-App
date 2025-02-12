@@ -6,10 +6,21 @@ import "package:flutter_speed_dial/flutter_speed_dial.dart";
 import "dart:ffi";
 import "package:ffi/ffi.dart";
 
-typedef DecodeWrapperC = Pointer<Utf8> Function(
+typedef DecodeWrapperC = Pointer<Void> Function(
+    Pointer<Pointer<Utf8>> input, Int32 length);
+
+typedef DecodeWrapperDart = Pointer<Void> Function(
     Pointer<Pointer<Utf8>> input, int length);
-typedef DecodeWrapperDart = Pointer<Utf8> Function(
-    Pointer<Pointer<Utf8>> input, int length);
+
+typedef FreePtrC = Void Function(Pointer<Utf8> ptr);
+typedef FreePtrDart = void Function(Pointer<Utf8> ptr);
+
+final dylib = DynamicLibrary.open("libdecode_wrapper.dll");
+
+final decodeDistro =
+    dylib.lookupFunction<DecodeWrapperC, DecodeWrapperDart>("decode_wrapper");
+
+final freePtr = dylib.lookupFunction<FreePtrC, FreePtrDart>("free_string");
 
 final GlobalKey<AppState> appStateKey = GlobalKey<AppState>();
 
@@ -23,7 +34,11 @@ class App extends StatefulWidget {
 }
 
 class AppState extends State<App> {
+  TextEditingController _textFieldController = TextEditingController();
+
   List<DynamicButton> dynamicButtons = [];
+  List<String> friends = [];
+  List<String> friendNames = [];
   List<String> data = [];
   String serverData = "";
   bool isConnected = false;
@@ -41,6 +56,14 @@ class AppState extends State<App> {
     });
   }
 
+  void closeSocket() {
+    if (m_socket != null) {
+      m_socket!.write("CL0SE|CONNECTION|PHONE");
+      m_socket!.close();
+      print("Socket closed.");
+    }
+  }
+
   connect(String ip, String username, int port) async {
     try {
       print("Connecting to server...");
@@ -51,22 +74,49 @@ class AppState extends State<App> {
 
       m_socket!.listen(
         (data) {
-          if (String.fromCharCodes(data) == "Username taken") {
-            m_socket!.close();
+          String formatedData = String.fromCharCodes(data);
+          String finalData = "";
+          bool foundHash = false;
+
+          if (formatedData == "Username taken") {
+            closeSocket();
           }
-          updateServerData("\n" + String.fromCharCodes(data));
-          print(isConnected);
+
+          for (var i = 0; i < formatedData.length; i++) {
+            if (formatedData[i] == "|") {
+              finalData = formatedData.substring(0, i);
+
+              for (var ii = 0; ii < friends.length; ii++) {
+                if (friends[ii] ==
+                    formatedData.substring(i + 1, formatedData.length)) {
+                  foundHash = true;
+                  break;
+                }
+              }
+
+              break;
+            }
+          }
+
+          if (foundHash) {
+            print(finalData);
+            updateServerData("\n" + finalData);
+          }
         },
         onDone: () {
           print("Server closed the connection.");
+          m_socket!.write("CL0SE|CONNECTION|PHONE");
+          closeSocket();
         },
         onError: (error) {
           print("Error: $error");
-          m_socket!.close();
+          m_socket!.write("CL0SE|CONNECTION|PHONE");
+          closeSocket();
         },
       );
     } catch (e) {
       print("Connection failed: $e");
+      closeSocket();
     }
   }
 
@@ -200,6 +250,69 @@ class AppState extends State<App> {
     );
   }
 
+  void showFriendList(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Whitelist"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: TextField(
+              controller: _textFieldController,
+              maxLines: null,
+              keyboardType: TextInputType.multiline,
+              decoration: InputDecoration(
+                hintText: "Each hash in new line",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text("Cancel"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text("Ok"),
+              onPressed: () {
+                friends.clear();
+                friendNames.clear();
+                bool brokenOutOf = false;
+
+                List<String> tempList = _textFieldController.text
+                    .split(RegExp(r'\r?\n'))
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
+
+                for (int i = 0; i < tempList.length; i++) {
+                  for (int ii = 0; ii < tempList[i].length; ii++) {
+                    if (tempList[i][ii] == "/") {
+                      friends.add(tempList[i].substring(0, ii));
+                      friendNames.add(tempList[i].substring(ii + 1));
+                      // print("${friends[i]}, ${friendNames[i]}");
+                      brokenOutOf = true;
+                      break;
+                    }
+                  }
+                  if (!brokenOutOf) {
+                    friends.add(tempList[i]);
+                    friendNames.add("");
+                  }
+                  brokenOutOf = false;
+                }
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -254,6 +367,10 @@ class AppState extends State<App> {
             SpeedDialChild(
               onTap: () => updateServerData(""),
               child: Icon(Icons.clear_all),
+            ),
+            SpeedDialChild(
+              onTap: () => showFriendList(context),
+              child: Icon(Icons.person_add_alt_1_rounded),
             ),
           ],
         ),
