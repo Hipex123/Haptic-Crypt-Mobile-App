@@ -3,24 +3,7 @@
 import "package:flutter/material.dart";
 import "dart:io";
 import "package:flutter_speed_dial/flutter_speed_dial.dart";
-import "dart:ffi";
-import "package:ffi/ffi.dart";
-
-typedef DecodeWrapperC = Pointer<Void> Function(
-    Pointer<Pointer<Utf8>> input, Int32 length);
-
-typedef DecodeWrapperDart = Pointer<Void> Function(
-    Pointer<Pointer<Utf8>> input, int length);
-
-typedef FreePtrC = Void Function(Pointer<Utf8> ptr);
-typedef FreePtrDart = void Function(Pointer<Utf8> ptr);
-
-final dylib = DynamicLibrary.open("libdecode_wrapper.dll");
-
-final decodeDistro =
-    dylib.lookupFunction<DecodeWrapperC, DecodeWrapperDart>("decode_wrapper");
-
-final freePtr = dylib.lookupFunction<FreePtrC, FreePtrDart>("free_string");
+import "utilities.dart";
 
 final GlobalKey<AppState> appStateKey = GlobalKey<AppState>();
 
@@ -40,11 +23,12 @@ class AppState extends State<App> {
   List<String> friends = [];
   List<String> friendNames = [];
   List<String> data = [];
-  String serverData = "";
+  List<int> serverDataIndex = [];
+  List<DynamicButton> serverData = [];
   bool isConnected = false;
   Socket? m_socket;
 
-  void updateServerData(String newData) {
+  void updateServerData(List<DynamicButton> newData) {
     setState(() {
       serverData = newData;
     });
@@ -69,6 +53,7 @@ class AppState extends State<App> {
       print("Connecting to server...");
       m_socket = await Socket.connect(ip, port);
       print("Connected to server!");
+      String nick = "";
 
       m_socket!.write("CONNECTED|PH0NE|" + username);
 
@@ -89,6 +74,7 @@ class AppState extends State<App> {
               for (var ii = 0; ii < friends.length; ii++) {
                 if (friends[ii] ==
                     formatedData.substring(i + 1, formatedData.length)) {
+                  nick = friendNames[ii];
                   foundHash = true;
                   break;
                 }
@@ -100,7 +86,8 @@ class AppState extends State<App> {
 
           if (foundHash) {
             print(finalData);
-            updateServerData("\n" + finalData);
+            print(nick);
+            addMsg(nick, finalData, serverData.length);
           }
         },
         onDone: () {
@@ -120,7 +107,20 @@ class AppState extends State<App> {
     }
   }
 
-  void addButton(String serverName, String ip, String username, int port) {
+  void addMsg(String nickname, String msg, int index) {
+    setState(() {
+      serverData.add(
+        DynamicButton(
+          label: nickname,
+          onPressed: () {
+            showMsgOptions(context, msg, index);
+          },
+        ),
+      );
+    });
+  }
+
+  void addServer(String serverName, String ip, String username, int port) {
     setState(() {
       dynamicButtons.add(
         DynamicButton(
@@ -138,6 +138,81 @@ class AppState extends State<App> {
     setState(() {
       dynamicButtons.removeWhere((button) => button.label == serverName);
     });
+  }
+
+  void showMsgOptions(BuildContext context, String msg, int index) {
+    String result = "";
+    bool isDecoded = false;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: Text(isDecoded ? "Message" : "Message Options"),
+            content:
+                SingleChildScrollView(child: isDecoded ? Text(result) : null),
+            actions: <Widget>[
+              if (!isDecoded) ...[
+                TextButton(
+                  child: Text("Cancel"),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: Text("Delete"),
+                  onPressed: () {
+                    updateServerData([...serverData]..removeAt(index));
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: Text("Decode"),
+                  onPressed: () {
+                    isDecoded = false;
+
+                    try {
+                      List<String> input = msg.split(',');
+
+                      for (int i = 0; i < input.length; i++) {
+                        if (input[i].isNotEmpty) {
+                          input[i] = input[i].substring(1);
+                        }
+
+                        if (i == input.length - 1) {
+                          input[i] = input[i].trimLeft();
+                        }
+                      }
+                      for (var i = 0; i < input.length; i++) {
+                        print(input[i]);
+                      }
+                      setState(() {
+                        result = utilityDecode(input);
+                        isDecoded = true;
+                      });
+                    } catch (e) {
+                      setState(() {
+                        isDecoded = true;
+                      });
+                      result = "Something went wrong";
+                      print(e);
+                    }
+                  },
+                ),
+              ],
+              if (isDecoded)
+                TextButton(
+                  child: Text("Close"),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+            ],
+          );
+        });
+      },
+    );
   }
 
   void showInputDialogServerOptions(BuildContext context, String serverName,
@@ -196,7 +271,7 @@ class AppState extends State<App> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Enter data"),
+          title: Text("Enter Data"),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -239,7 +314,7 @@ class AppState extends State<App> {
               child: Text("Add"),
               onPressed: () {
                 if (serverName.isNotEmpty && ip.isNotEmpty && port != 0) {
-                  addButton(serverName, ip, username, port);
+                  addServer(serverName, ip, username, port);
                   Navigator.of(context).pop();
                 }
               },
@@ -272,6 +347,7 @@ class AppState extends State<App> {
             TextButton(
               child: Text("Cancel"),
               onPressed: () {
+                _textFieldController.clear();
                 Navigator.of(context).pop();
               },
             ),
@@ -300,7 +376,7 @@ class AppState extends State<App> {
                   }
                   if (!brokenOutOf) {
                     friends.add(tempList[i]);
-                    friendNames.add("");
+                    friendNames.add("Message${serverData.length}");
                   }
                   brokenOutOf = false;
                 }
@@ -341,16 +417,8 @@ class AppState extends State<App> {
               ),
               Expanded(
                 flex: 2,
-                child: Container(
-                  padding: EdgeInsets.all(16),
-                  color: Colors.grey[200],
-                  child: Text(
-                    serverData,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.black87,
-                    ),
-                  ),
+                child: Column(
+                  children: serverData,
                 ),
               )
             ],
@@ -365,7 +433,9 @@ class AppState extends State<App> {
               child: Icon(Icons.add),
             ),
             SpeedDialChild(
-              onTap: () => updateServerData(""),
+              onTap: () => setState(() {
+                serverData.clear();
+              }),
               child: Icon(Icons.clear_all),
             ),
             SpeedDialChild(

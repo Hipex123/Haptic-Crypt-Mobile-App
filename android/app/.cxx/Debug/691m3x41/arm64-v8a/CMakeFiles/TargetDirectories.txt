@@ -1,0 +1,3 @@
+C:/Users/123/OneDrive/Namizje/encryption_receiver/android/app/.cxx/Debug/691m3x41/arm64-v8a/CMakeFiles/decoder.dir
+C:/Users/123/OneDrive/Namizje/encryption_receiver/android/app/.cxx/Debug/691m3x41/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/123/OneDrive/Namizje/encryption_receiver/android/app/.cxx/Debug/691m3x41/arm64-v8a/CMakeFiles/rebuild_cache.dir

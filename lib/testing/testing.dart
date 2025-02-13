@@ -11,14 +11,14 @@ typedef FreePtrC = Void Function(Pointer<Utf8> ptr);
 typedef FreePtrDart = void Function(Pointer<Utf8> ptr);
 
 void main() {
-  final dylib = DynamicLibrary.open("libdecode_wrapper.dll");
+  final dylib = DynamicLibrary.open("libdecode_wrapper.so");
 
   final decodeWrapper =
       dylib.lookupFunction<DecodeWrapperC, DecodeWrapperDart>("decode_wrapper");
 
   final freePtr = dylib.lookupFunction<FreePtrC, FreePtrDart>("free_string");
 
-  final input = [
+  List<String> input = [
     "  x0196",
     "  m109",
     " xdd",
