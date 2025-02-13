@@ -1,0 +1,1 @@
+C:\Users\123\OneDrive\Namizje\encryption_receiver\android\app\src\main\cpp\CMakeLists.txt

@@ -1,0 +1,7 @@
+# ninja log v5
+1	991	7611744042141681	CMakeFiles/decoder.dir/decoder.cpp.o	888da508715b3b70
+993	1113	7611744043342280	C:/Users/123/OneDrive/Namizje/encryption_receiver/build/app/intermediates/cxx/Debug/691m3x41/obj/x86_64/libdecoder.so	bacf62ba9e77ead3
+0	10	0	clean	dd22d46f38733c3c
+0	8	0	clean	dd22d46f38733c3c
+2	977	7611745826508553	CMakeFiles/decoder.dir/decoder.cpp.o	888da508715b3b70
+977	1104	7611745827791246	C:/Users/123/OneDrive/Namizje/encryption_receiver/build/app/intermediates/cxx/Debug/691m3x41/obj/x86_64/libdecoder.so	bacf62ba9e77ead3

@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "C:\\Users\\123\\OneDrive\\Namizje\\encryption_receiver\\android\\app\\src\\main\\cpp\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\123\\AppData\\Local\\Android\\sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\Users\\123\\OneDrive\\Namizje\\encryption_receiver\\android\\app\\.cxx\\Debug\\691m3x41\\x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\123\\AppData\\Local\\Android\\sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\Users\\123\\OneDrive\\Namizje\\encryption_receiver\\android\\app\\.cxx\\Debug\\691m3x41\\x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "decoder::@6890427a1f51a3e7e1df": {
+      "artifactName": "decoder",
+      "abi": "x86_64",
+      "output": "C:\\Users\\123\\OneDrive\\Namizje\\encryption_receiver\\build\\app\\intermediates\\cxx\\Debug\\691m3x41\\obj\\x86_64\\libdecoder.so",
+      "runtimeFiles": []
+    }
+  }
+}
